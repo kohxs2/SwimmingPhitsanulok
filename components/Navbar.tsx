@@ -6,7 +6,7 @@ import { collection, query, where, onSnapshot, updateDoc, doc, writeBatch } from
 import { UserProfile, Notification } from '../types';
 import { auth, db } from '../services/firebase';
 import { 
-  Menu, X, Waves, User, LogOut, ChevronRight, Bell, 
+  Menu, X, User, LogOut, ChevronRight, Bell, 
   CheckCircle, XCircle, Info, LayoutDashboard, Star, Clock, AlertTriangle 
 } from 'lucide-react';
 
@@ -124,7 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
   const NavLink = ({ to, label, mobile = false }: { to: string, label: string, mobile?: boolean }) => {
     const isActive = location.pathname === to;
     const baseClass = mobile 
-      ? "block px-4 py-3 text-lg font-medium rounded-lg transition-colors" 
+      ? "block px-4 py-3 text-lg font-medium rounded-xl transition-colors mb-1" 
       : "text-base font-bold transition-colors hover:text-ocean-600 relative group";
     
     const activeClass = mobile 
@@ -151,19 +151,18 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md shadow-sm z-50 h-20 transition-all border-b border-slate-100">
-      <div className="w-full px-6 sm:px-10 lg:px-16 h-full flex items-center justify-between">
+      <div className="w-full px-4 sm:px-10 lg:px-16 h-full flex items-center justify-between">
         
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
-          {/* ส่วนที่แก้ไข: ใส่รูปภาพแทนไอคอนเดิม */}
+        <Link to="/" className="flex items-center gap-3 group overflow-hidden">
           <img 
             src="https://img5.pic.in.th/file/secure-sv1/548319157_1084231807208955_4955603028962618729_n.png" 
             alt="Logo" 
-            className="w-12 h-12 rounded-xl object-cover border border-slate-100 shadow-sm" 
+            className="w-12 h-12 rounded-xl object-cover border border-slate-100 shadow-sm flex-shrink-0" 
           />
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-slate-800 leading-tight">เรียนว่ายน้ำพิษณุโลก</span>
-            <span className="text-xs text-ocean-600 font-medium">By ครูฟลุ๊ค</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-lg sm:text-xl font-bold text-slate-800 leading-tight truncate">เรียนว่ายน้ำพิษณุโลก</span>
+            <span className="text-xs text-ocean-600 font-medium truncate">By ครูฟลุ๊ค</span>
           </div>
         </Link>
 
@@ -181,7 +180,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
         <div className="hidden lg:flex items-center space-x-4">
           {user ? (
             <>
-               {/* Dashboard Button */}
                <Link 
                  to="/dashboard"
                  className="p-2.5 text-slate-500 hover:text-ocean-600 hover:bg-ocean-50 rounded-full transition-all relative group"
@@ -268,20 +266,20 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
 
                 {showProfileDropdown && (
                   <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in p-2 z-50">
-                     <div className="xl:hidden px-4 py-3 border-b border-slate-50 mb-2">
-                        <p className="font-bold text-slate-800">{user.displayName}</p>
-                        <p className="text-xs text-slate-500">{user.email}</p>
-                     </div>
-                     <Link to="/profile" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 text-slate-700 text-sm font-medium transition-colors" onClick={() => setShowProfileDropdown(false)}>
+                      <div className="xl:hidden px-4 py-3 border-b border-slate-50 mb-2">
+                         <p className="font-bold text-slate-800">{user.displayName}</p>
+                         <p className="text-xs text-slate-500">{user.email}</p>
+                      </div>
+                      <Link to="/profile" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 text-slate-700 text-sm font-medium transition-colors" onClick={() => setShowProfileDropdown(false)}>
                         <User size={18} /> โปรไฟล์ของฉัน
-                     </Link>
-                     <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 text-slate-700 text-sm font-medium transition-colors" onClick={() => setShowProfileDropdown(false)}>
+                      </Link>
+                      <Link to="/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 text-slate-700 text-sm font-medium transition-colors" onClick={() => setShowProfileDropdown(false)}>
                         <LayoutDashboard size={18} /> แดชบอร์ด
-                     </Link>
-                     <div className="h-px bg-slate-100 my-2"></div>
-                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 text-sm font-medium transition-colors">
+                      </Link>
+                      <div className="h-px bg-slate-100 my-2"></div>
+                      <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-600 text-sm font-medium transition-colors">
                         <LogOut size={18} /> ออกจากระบบ
-                     </button>
+                      </button>
                   </div>
                 )}
               </div>
@@ -304,17 +302,29 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
 
         {/* Mobile Menu Button */}
         <button 
-          className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+          className="lg:hidden p-2 text-slate-800 hover:bg-slate-100 rounded-lg flex-shrink-0 ml-2"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
         </button>
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - Full Screen Fixed */}
       {isMenuOpen && (
-        <div className="lg:hidden fixed inset-0 top-20 bg-white z-40 overflow-y-auto pb-20 animate-fade-in">
-           <div className="p-6 space-y-2">
+        <div className="lg:hidden fixed inset-0 bg-white z-[60] h-screen w-full overflow-y-auto animate-fade-in">
+           {/* Header with Close Button */}
+           <div className="flex items-center justify-between px-6 h-20 border-b border-slate-100 bg-white sticky top-0 z-50">
+              <span className="text-xl font-bold text-slate-800">เมนูหลัก</span>
+              <button 
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 -mr-2 text-slate-500 hover:bg-slate-100 hover:text-red-500 rounded-full transition-colors"
+              >
+                <X size={32} />
+              </button>
+           </div>
+
+           {/* Menu Content */}
+           <div className="p-6 pb-20 space-y-2 bg-white">
               <NavLink to="/" label="หน้าแรก" mobile />
               <NavLink to="/courses" label="คอร์สเรียน" mobile />
               <NavLink to="/register" label="ลงทะเบียนเรียน" mobile />
@@ -325,34 +335,34 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
               <div className="border-t border-slate-100 my-4 pt-4">
                  {user ? (
                    <>
-                      <div className="px-4 mb-4 flex items-center gap-3">
-                         <div className="w-10 h-10 rounded-full bg-ocean-100 text-ocean-600 flex items-center justify-center">
-                            <User size={20} />
+                      <div className="px-4 mb-6 flex items-center gap-4">
+                         <div className="w-12 h-12 rounded-full bg-ocean-100 text-ocean-600 flex items-center justify-center border border-ocean-200 flex-shrink-0">
+                            <User size={24} />
                          </div>
-                         <div>
-                            <p className="font-bold text-slate-900">{user.displayName}</p>
-                            <p className="text-xs text-slate-500">{user.email}</p>
+                         <div className="min-w-0">
+                            <p className="font-bold text-lg text-slate-900 truncate">{user.displayName}</p>
+                            <p className="text-sm text-slate-500 truncate">{user.email}</p>
                          </div>
                       </div>
-                      <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 text-lg font-medium text-slate-600 hover:bg-slate-50 rounded-lg">
-                          <LayoutDashboard className="inline mr-2 w-5 h-5" /> แดชบอร์ด
+                      <Link to="/dashboard" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 text-lg font-medium text-slate-600 hover:bg-slate-50 rounded-xl mb-1">
+                          <LayoutDashboard className="inline mr-3 w-6 h-6 text-ocean-500" /> แดชบอร์ด
                       </Link>
-                      <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 text-lg font-medium text-slate-600 hover:bg-slate-50 rounded-lg">
-                          <User className="inline mr-2 w-5 h-5" /> โปรไฟล์
+                      <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="block px-4 py-3 text-lg font-medium text-slate-600 hover:bg-slate-50 rounded-xl mb-1">
+                          <User className="inline mr-3 w-6 h-6 text-ocean-500" /> โปรไฟล์
                       </Link>
-                      <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-lg font-medium text-red-600 hover:bg-red-50 rounded-lg">
-                          <LogOut className="inline mr-2 w-5 h-5" /> ออกจากระบบ
+                      <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-lg font-medium text-red-600 hover:bg-red-50 rounded-xl mt-2">
+                          <LogOut className="inline mr-3 w-6 h-6" /> ออกจากระบบ
                       </button>
                    </>
                  ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                      <Link to="/login" state={{ isRegister: true }} onClick={() => setIsMenuOpen(false)} className="block w-full text-center py-3 text-ocean-600 bg-ocean-50 hover:bg-ocean-100 font-bold rounded-xl border border-ocean-100 active:scale-95 transition-transform">
-                         สมัครสมาชิก
-                      </Link>
-                      <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block w-full text-center py-3 bg-ocean-600 text-white font-bold rounded-xl shadow-lg hover:bg-ocean-700 active:scale-95 transition-transform">
-                         เข้าสู่ระบบ
-                      </Link>
-                    </div>
+                   <div className="flex flex-col gap-4 mt-2">
+                     <Link to="/login" state={{ isRegister: true }} onClick={() => setIsMenuOpen(false)} className="block w-full text-center py-4 text-ocean-600 bg-ocean-50 hover:bg-ocean-100 font-bold rounded-2xl border border-ocean-100 text-lg">
+                        สมัครสมาชิก
+                     </Link>
+                     <Link to="/login" onClick={() => setIsMenuOpen(false)} className="block w-full text-center py-4 bg-ocean-600 text-white font-bold rounded-2xl shadow-lg hover:bg-ocean-700 text-lg">
+                        เข้าสู่ระบบ
+                     </Link>
+                   </div>
                  )}
               </div>
            </div>
