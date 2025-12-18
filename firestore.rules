@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+    
+    function isInstructor() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'INSTRUCTOR';
+    }
+    
+    function isStaff() {
+      return isAdmin() || isInstructor();
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null; 
+      
+      // Allow user to create their own document.
+      allow create: if request.auth != null && request.auth.uid == userId && (
+        !('role' in request.resource.data) || 
+        request.resource.data.role == 'STUDENT' ||
+        (request.resource.data.role == 'ADMIN' && request.auth.token.email == 'admin@example.com') ||
+        (request.resource.data.role == 'INSTRUCTOR' && request.auth.token.email == 'instructor@example.com')
+      );
+
+      // Allow update if Admin OR (User owns doc AND is NOT changing the 'role' field)
+      allow update: if request.auth != null && (
+        isAdmin() || 
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+      );
+    }
+    
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    match /enrollments/{enrollmentId} {
+      // Allow create only if the userId matches the authenticated user AND paymentStatus is PENDING
+      allow create: if request.auth != null && 
+                    request.resource.data.userId == request.auth.uid && 
+                    request.resource.data.paymentStatus == 'PENDING';
+      
+      // Allow reading if:
+      // 1. The enrollment is PAID (Publicly accessible for reviews and stats)
+      // 2. It is the user's own data
+      // 3. The user is staff
+      allow read: if resource.data.paymentStatus == 'PAID' || (request.auth != null && (resource.data.userId == request.auth.uid || isStaff()));
+      
+      // Update Rules:
+      allow update: if request.auth != null && (
+        isStaff() || 
+        (resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['review']))
+      );
+      
+      allow delete: if request.auth != null && isAdmin();
+    }
+    
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isStaff());
+      // Only staff can send official notifications like PAYMENT/EXPIRY. 
+      // Students can only send SYSTEM type (e.g. for registration alerts to admins).
+      allow create: if request.auth != null && (
+        isStaff() || 
+        (request.resource.data.type == 'SYSTEM')
+      );
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isStaff());
+    }
+
+    match /leave_requests/{requestId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && isStaff();
+      allow delete: if request.auth != null && isStaff();
+    }
+
+    // NEW: Allow access to counters for ID generation
+    match /counters/{counterId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

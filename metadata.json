@@ -1,0 +1,8 @@
+{
+  "name": "เรียนว่ายน้ำพิษณุโลก By ครูฟลุ๊ค",
+  "description": "A comprehensive management system for a swimming school, featuring course registration, student tracking, attendance management, and dashboards for admins, instructors, and parents.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
