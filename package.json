@@ -1,25 +1,31 @@
 {
-  "name": "เรียนว่ายน้ำพิษณุโลก-by-ครูฟลุ๊ค",
+  "name": "swimming-school-management",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "firebase": "^12.6.0",
-    "react-router-dom": "^7.10.1",
-    "lucide-react": "^0.559.0",
-    "recharts": "^3.5.1"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.0",
+    "firebase": "^11.0.0",
+    "lucide-react": "^0.460.0",
+    "recharts": "^2.13.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.1"
   }
 }
