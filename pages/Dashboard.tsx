@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, getDocs, query, where, doc, updateDoc, onSnapshot, addDoc, arrayUnion, writeBatch, deleteDoc, orderBy } from 'firebase/firestore';
@@ -163,13 +164,12 @@ export default function Dashboard({ user }: DashboardProps) {
         setLoading(false);
     }
 
-    // --- LEAVE REQUESTS LISTENER (Updated for Admin/Instructor) ---
+    // --- LEAVE REQUESTS LISTENER ---
     try {
         let qLeave;
         if (user.role === UserRole.STUDENT) {
             qLeave = query(collection(db, "leave_requests"), where("userId", "==", user.uid));
         } else {
-            // Admin & Instructor see all requests (can filter later)
             qLeave = collection(db, "leave_requests");
         }
         
@@ -181,7 +181,7 @@ export default function Dashboard({ user }: DashboardProps) {
         unsubs.push(unsubLeaves);
     } catch (e) { console.error(e); }
 
-    // --- NOTIFICATIONS LISTENER (Updated for ALL Roles) ---
+    // --- NOTIFICATIONS LISTENER ---
     try {
         const qNotif = query(
             collection(db, "notifications"), 
@@ -570,11 +570,9 @@ export default function Dashboard({ user }: DashboardProps) {
                 : "กรุณาตรวจสอบหลักฐานการโอนเงินและดำเนินการส่งใหม่อีกครั้ง";
             await sendNotification(userId, title, msg, 'PAYMENT');
 
-            // --- INSTRUCTOR NOTIFICATION LOGIC ---
             if (status === 'PAID') {
                 const course = courses.find(c => c.id === courseId);
                 if (course && course.instructorName) {
-                    // Find instructor by name (assuming name match or you can improve this with instructor ID reference)
                     const instructor = users.find(u => u.role === UserRole.INSTRUCTOR && u.displayName === course.instructorName);
                     if (instructor) {
                          await sendNotification(
@@ -797,7 +795,7 @@ export default function Dashboard({ user }: DashboardProps) {
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
-                                        <thead className="bg-slate-50 text-slate-600 text-sm uppercase font-bold tracking-wider border-b border-slate-200"><tr><th className="p-5">รหัส นร.</th><th className="p-5">นักเรียน</th><th className="p-5">ความคืบหน้า</th><th className="p-5">สถานะ</th><th className="p-5 text-right">จัดการ</th></tr></thead>
+                                        <thead className="bg-slate-50 text-slate-600 text-sm uppercase font-bold tracking-wider border-b border-slate-200"><tr><th className="p-5">รหัส นร.</th><th className="p-5">นักเรียน</th><th className="p-5">เช็คชื่อเข้าเรียน</th><th className="p-5">สถานะ</th><th className="p-5 text-right">จัดการ</th></tr></thead>
                                         <tbody className="divide-y divide-slate-100">
                                             {enrollments.filter(e => e.courseId === selectedCourseId && e.paymentStatus === 'PAID').map(en => {
                                                 const course = courses.find(c => c.id === en.courseId);
@@ -825,7 +823,6 @@ export default function Dashboard({ user }: DashboardProps) {
                 </div>
             )}
 
-            {/* Payments Tab */}
             {activeTab === 'payments' && (
                 <div className="animate-fade-in">
                     <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-slate-800">รายการรอตรวจสอบ ({stats.pendingPayments})</h2><button type="button" onClick={() => setActiveTab('enrollments')} className="text-ocean-600 hover:underline">ดูประวัติทั้งหมด</button></div>
@@ -847,10 +844,9 @@ export default function Dashboard({ user }: DashboardProps) {
                 </div>
             )}
 
-            {/* Enrollments Tab */}
             {activeTab === 'enrollments' && (
                  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in relative">
-                      <div className="p-4 flex justify-end"><button onClick={() => {/*CSV logic*/}} className="flex items-center gap-2 text-green-600 hover:bg-green-50 px-4 py-2 rounded-lg font-bold transition-colors"><FileSpreadsheet size={18} /> Export Excel (CSV)</button></div>
+                      <div className="p-4 flex justify-end"><button onClick={() => {}} className="flex items-center gap-2 text-green-600 hover:bg-green-50 px-4 py-2 rounded-lg font-bold transition-colors"><FileSpreadsheet size={18} /> Export Excel (CSV)</button></div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-base text-left">
                             <thead className="text-slate-600 bg-slate-50 border-b border-slate-200 uppercase tracking-wider"><tr><th className="p-6 font-bold">รหัส นร.</th><th className="p-6 font-bold">วันที่สมัคร</th><th className="p-6 font-bold">ชื่อผู้เรียน</th><th className="p-6 font-bold">คอร์สเรียน</th><th className="p-6 font-bold">หลักฐาน</th><th className="p-6 font-bold">สถานะ</th><th className="p-6 font-bold text-right">จัดการ</th></tr></thead>
@@ -867,7 +863,9 @@ export default function Dashboard({ user }: DashboardProps) {
                                         <td className="p-6 font-semibold text-slate-900">{enrollment.studentName}<div className="text-sm text-slate-500 font-normal mt-1">{enrollment.phone}</div></td>
                                         <td className="p-6 text-slate-700">{courseName}</td>
                                         <td className="p-6"><button type="button" onClick={() => setSelectedSlip(enrollment.slipUrl)} className="text-ocean-600 hover:text-ocean-800 underline font-medium flex items-center"><Eye size={16} className="mr-1"/> ดูสลิป</button></td>
-                                        <td className="p-6"><span className={`px-3 py-1.5 rounded-full text-sm font-bold ${enrollment.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' : enrollment.paymentStatus === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{enrollment.paymentStatus}</span></td>
+                                        <td className="p-6"><span className={`px-3 py-1.5 rounded-full text-sm font-bold ${enrollment.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' : enrollment.paymentStatus === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {enrollment.paymentStatus === 'PAID' ? 'ชำระแล้ว' : enrollment.paymentStatus === 'REJECTED' ? 'ปฏิเสธ' : 'กำลังรอตอบรับ'}
+                                        </span></td>
                                         <td className="p-6 text-right">
                                             {enrollment.paymentStatus === 'PENDING' ? (
                                                 <div className="flex justify-end space-x-3">
@@ -941,7 +939,9 @@ export default function Dashboard({ user }: DashboardProps) {
                                         <td className="p-5 text-slate-700">{req.courseName}</td>
                                         <td className="p-5 font-bold text-orange-600">{new Date(req.leaveDate).toLocaleDateString('th-TH')}</td>
                                         <td className="p-5 text-sm text-slate-600 max-w-xs truncate">{req.reason}</td>
-                                        <td className="p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{req.status}</span></td>
+                                        <td className="p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {req.status === 'APPROVED' ? 'อนุมัติ' : req.status === 'REJECTED' ? 'ปฏิเสธ' : 'กำลังรอตอบรับ'}
+                                        </span></td>
                                         <td className="p-5 text-right">
                                             {req.status === 'PENDING' && (
                                                 <div className="flex justify-end gap-2">
@@ -997,7 +997,7 @@ export default function Dashboard({ user }: DashboardProps) {
                         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
-                                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-sm tracking-wider"><tr><th className="p-5 w-16 text-center"><input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-ocean-600 focus:ring-ocean-500 cursor-pointer" checked={selectedStudentIds.length > 0 && selectedStudentIds.length === enrollments.filter(e => e.courseId === selectedCourseId && e.paymentStatus === 'PAID' && !isCheckedInToday(e.attendance)).length} onChange={() => { if (selectedStudentIds.length > 0) setSelectedStudentIds([]); else setSelectedStudentIds(enrollments.filter(e => e.courseId === selectedCourseId && e.paymentStatus === 'PAID' && !isCheckedInToday(e.attendance)).map(s => s.id)); }} /></th><th className="p-5 font-bold">ชื่อนักเรียน</th><th className="p-5 font-bold">ความคืบหน้า</th><th className="p-5 font-bold">ข้อมูล & ตารางเรียน</th><th className="p-5 font-bold">ประเมินผล</th></tr></thead>
+                                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-sm tracking-wider"><tr><th className="p-5 w-16 text-center"><input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-ocean-600 focus:ring-ocean-500 cursor-pointer" checked={selectedStudentIds.length > 0 && selectedStudentIds.length === enrollments.filter(e => e.courseId === selectedCourseId && e.paymentStatus === 'PAID' && !isCheckedInToday(e.attendance)).length} onChange={() => { if (selectedStudentIds.length > 0) setSelectedStudentIds([]); else setSelectedStudentIds(enrollments.filter(e => e.courseId === selectedCourseId && e.paymentStatus === 'PAID' && !isCheckedInToday(e.attendance)).map(s => s.id)); }} /></th><th className="p-5 font-bold">ชื่อนักเรียน</th><th className="p-5 font-bold">เช็คชื่อเข้าเรี่ยน</th><th className="p-5 font-bold">ข้อมูล & ตารางเรียน</th><th className="p-5 font-bold">ประเมินผล</th></tr></thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {enrollments.filter(e => e.courseId === selectedCourseId && e.paymentStatus === 'PAID').map(student => {
                                             const attendedCount = student.attendance ? student.attendance.length : 0;
@@ -1038,7 +1038,9 @@ export default function Dashboard({ user }: DashboardProps) {
                                         <td className="p-5 text-slate-700">{req.courseName}</td>
                                         <td className="p-5 font-bold text-orange-600">{new Date(req.leaveDate).toLocaleDateString('th-TH')}</td>
                                         <td className="p-5 text-sm text-slate-600 max-w-xs truncate">{req.reason}</td>
-                                        <td className="p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{req.status}</span></td>
+                                        <td className="p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {req.status === 'APPROVED' ? 'อนุมัติ' : req.status === 'REJECTED' ? 'ปฏิเสธ' : 'กำลังรอตอบรับ'}
+                                        </span></td>
                                         <td className="p-5 text-right">
                                             {req.status === 'PENDING' && (
                                                 <div className="flex justify-end gap-2">
@@ -1090,11 +1092,15 @@ export default function Dashboard({ user }: DashboardProps) {
             {activeTab === 'schedule' && renderCalendar()}
             {activeTab === 'history' && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in"><div className="p-6 border-b border-slate-100"><h3 className="font-bold text-xl text-slate-800 flex items-center"><History className="mr-2 text-ocean-600" /> ประวัติการชำระเงิน ({enrollments.length})</h3></div>
-                <div className="overflow-x-auto"><table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 uppercase text-sm font-bold border-b border-slate-200"><tr><th className="p-5">วันที่ชำระ</th><th className="p-5">คอร์สเรียน</th><th className="p-5">ราคา</th><th className="p-5">สถานะ</th><th className="p-5 text-right">หลักฐาน</th></tr></thead><tbody className="divide-y divide-slate-100">{enrollments.map(en => (<tr key={en.id} className="hover:bg-slate-50 transition-colors"><td className="p-5 text-slate-600">{new Date(en.createdAt).toLocaleDateString('th-TH')}</td><td className="p-5 font-bold text-slate-800">{courses.find(c => c.id === en.courseId)?.title}</td><td className="p-5 text-ocean-600 font-bold">฿{courses.find(c => c.id === en.courseId)?.price.toLocaleString()}</td><td className="p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold ${en.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' : en.paymentStatus === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{en.paymentStatus}</span></td><td className="p-5 text-right"><button onClick={() => setSelectedSlip(en.slipUrl)} className="flex items-center ml-auto text-sm text-slate-500 hover:text-ocean-600 font-medium transition-colors"><FileText className="w-4 h-4 mr-1" /> ดูสลิป</button></td></tr>))}</tbody></table></div></div>
+                <div className="overflow-x-auto"><table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 uppercase text-sm font-bold border-b border-slate-200"><tr><th className="p-5">วันที่ชำระ</th><th className="p-5">คอร์สเรียน</th><th className="p-5">ราคา</th><th className="p-5">สถานะ</th><th className="p-5 text-right">หลักฐาน</th></tr></thead><tbody className="divide-y divide-slate-100">{enrollments.map(en => (<tr key={en.id} className="hover:bg-slate-50 transition-colors"><td className="p-5 text-slate-600">{new Date(en.createdAt).toLocaleDateString('th-TH')}</td><td className="p-5 font-bold text-slate-800">{courses.find(c => c.id === en.courseId)?.title}</td><td className="p-5 text-ocean-600 font-bold">฿{courses.find(c => c.id === en.courseId)?.price.toLocaleString()}</td><td className="p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold ${en.paymentStatus === 'PAID' ? 'bg-green-100 text-green-700' : en.paymentStatus === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {en.paymentStatus === 'PAID' ? 'ชำระแล้ว' : en.paymentStatus === 'REJECTED' ? 'ปฏิเสธ' : 'กำลังรอตอบรับ'}
+                </span></td><td className="p-5 text-right"><button onClick={() => setSelectedSlip(en.slipUrl)} className="flex items-center ml-auto text-sm text-slate-500 hover:text-ocean-600 font-medium transition-colors"><FileText className="w-4 h-4 mr-1" /> ดูสลิป</button></td></tr>))}</tbody></table></div></div>
             )}
             {activeTab === 'leaves' && (
                 <div className="space-y-8 animate-fade-in"><div className="flex justify-between items-center"><h3 className="font-bold text-xl text-slate-800 flex items-center"><CalendarX className="mr-2 text-ocean-600" /> การแจ้งลาหยุด</h3><button onClick={() => setShowLeaveModal(true)} className="bg-ocean-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-ocean-700 transition-colors flex items-center"><CalendarX className="w-5 h-5 mr-2" /> แจ้งลาหยุด</button></div>
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 uppercase text-sm font-bold border-b border-slate-200"><tr><th className="p-5">วันที่แจ้ง</th><th className="p-5">คอร์สเรียน</th><th className="p-5">วันที่ลา</th><th className="p-5">เหตุผล</th><th className="p-5 text-right">สถานะ</th></tr></thead><tbody className="divide-y divide-slate-100">{leaveRequests.map(req => (<tr key={req.id} className="hover:bg-slate-50 transition-colors"><td className="p-5 text-slate-500 text-sm">{new Date(req.createdAt).toLocaleDateString('th-TH')}</td><td className="p-5 font-bold text-slate-800">{req.courseName}</td><td className="p-5 font-medium text-orange-600">{new Date(req.leaveDate).toLocaleDateString('th-TH')}</td><td className="p-5 text-slate-600 text-sm">{req.reason}</td><td className="p-5 text-right"><span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{req.status}</span></td></tr>))}</tbody></table></div></div></div>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 uppercase text-sm font-bold border-b border-slate-200"><tr><th className="p-5">วันที่แจ้ง</th><th className="p-5">คอร์สเรียน</th><th className="p-5">วันที่ลา</th><th className="p-5">เหตุผล</th><th className="p-5 text-right">สถานะ</th></tr></thead><tbody className="divide-y divide-slate-100">{leaveRequests.map(req => (<tr key={req.id} className="hover:bg-slate-50 transition-colors"><td className="p-5 text-slate-500 text-sm">{new Date(req.createdAt).toLocaleDateString('th-TH')}</td><td className="p-5 font-bold text-slate-800">{req.courseName}</td><td className="p-5 font-medium text-orange-600">{new Date(req.leaveDate).toLocaleDateString('th-TH')}</td><td className="p-5 text-slate-600 text-sm">{req.reason}</td><td className="p-5 text-right"><span className={`px-3 py-1 rounded-full text-xs font-bold ${req.status === 'APPROVED' ? 'bg-green-100 text-green-700' : req.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {req.status === 'APPROVED' ? 'อนุมัติ' : req.status === 'REJECTED' ? 'ปฏิเสธ' : 'กำลังรอตอบรับ'}
+                </span></td></tr>))}</tbody></table></div></div></div>
             )}
          </div>
       )}
@@ -1125,11 +1131,10 @@ export default function Dashboard({ user }: DashboardProps) {
             </div>
       )}
 
-      {/* 3. Common Confirmation Modal (Used for Delete, Broadcast Confirm, Check-in, Expiry Manual, Role Change, Leave Action) */}
+      {/* 3. Common Confirmation Modal */}
       {(deleteTargetId || showBulkCheckInConfirm || evaluationTarget || showBroadcastConfirm || showExpiryConfirm || roleChangeTarget || leaveActionTarget) && (
           <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
              <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-sm w-full text-center">
-                 {/* Dynamic Content based on State */}
                  {deleteTargetId && (
                      <>
                         <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600"><Trash2 size={40} /></div>
@@ -1189,7 +1194,7 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
       )}
 
-      {/* 4. Student Review Modal (Auto Pop-up) */}
+      {/* 4. Student Review Modal */}
       {reviewTarget && (
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
              <div className="bg-white rounded-[2rem] max-w-lg w-full p-8 shadow-2xl relative">
@@ -1213,7 +1218,7 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
       )}
 
-      {/* 5. Notification Modal (Auto Pop-up) */}
+      {/* 5. Notification Modal */}
       {showNotificationModal && activeNotifications.length > 0 && (
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
              <div className="bg-white rounded-[2rem] max-w-lg w-full p-8 shadow-2xl relative">
@@ -1237,7 +1242,7 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
       )}
 
-      {/* 6. Expiry Alert Modal (Auto Pop-up for Student) */}
+      {/* 6. Expiry Alert Modal */}
       {showExpiryAlertModal && (
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-sm w-full text-center">
@@ -1279,7 +1284,7 @@ export default function Dashboard({ user }: DashboardProps) {
             </div>
       )}
       
-      {/* Profile & Calendar Modal (Shared) */}
+      {/* Profile & Calendar Modal */}
       {showProfileModal && targetStudent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
               <div className="bg-white rounded-[2rem] max-w-2xl w-full p-8 shadow-2xl relative max-h-[90vh] overflow-y-auto">
