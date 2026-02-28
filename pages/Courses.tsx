@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, doc, updateDoc, setDoc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, setDoc, addDoc, deleteDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { uploadImageToImgbb } from '../services/imgbbService';
 import { Course, UserRole, UserProfile, Enrollment } from '../types';
@@ -27,6 +27,8 @@ const Courses: React.FC<CoursesProps> = ({ user }) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Course>>({});
   const [realTimeEnrolled, setRealTimeEnrolled] = useState<Record<string, number>>({});
   
@@ -216,30 +218,81 @@ const Courses: React.FC<CoursesProps> = ({ user }) => {
     setEditForm(course);
     setImageFile(null); // Reset file
     setIsEditing(true);
+    setIsAdding(false);
   };
 
-  const handleSaveEdit = async () => {
+  const handleAddClick = () => {
+    setEditForm({
+      title: '',
+      ageGroup: '4-6 ขวบ',
+      type: 'Normal',
+      sessions: 20,
+      price: 0,
+      timeSlot: '',
+      description: '',
+      capacity: 10,
+      enrolled: 0,
+      imageUrl: '',
+      isOpen: true,
+      terms: 'เงื่อนไขการเรียน...',
+      instructorName: '',
+      poolLocation: ''
+    });
+    setImageFile(null);
+    setIsAdding(true);
+    setIsEditing(true);
+    setSelectedCourse({ id: 'new' } as Course); // Dummy course to open modal
+  };
+
+  const handleDeleteCourse = async () => {
     if (!selectedCourse || !isSuperAdmin) return;
     
     setSaving(true);
     try {
-      let finalImageUrl = editForm.imageUrl;
+        await deleteDoc(doc(db, "courses", selectedCourse.id));
+        alert("ลบคอร์สเรียนเรียบร้อยแล้ว");
+        setShowDeleteConfirm(false);
+        setSelectedCourse(null);
+        setIsEditing(false);
+        setIsAdding(false);
+    } catch (error) {
+        console.error("Error deleting course:", error);
+        alert("เกิดข้อผิดพลาดในการลบคอร์ส");
+    } finally {
+        setSaving(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!isSuperAdmin) return;
+    
+    setSaving(true);
+    try {
+      let finalImageUrl = editForm.imageUrl || 'https://via.placeholder.com/400x300';
 
       // Upload new image if selected
       if (imageFile) {
          finalImageUrl = await uploadImageToImgbb(imageFile);
       }
 
-      const courseRef = doc(db, "courses", selectedCourse.id);
       const updatedData = { ...editForm, imageUrl: finalImageUrl };
 
-      // Use setDoc with merge: true to handle both existing docs and new docs (from INITIAL_COURSES)
-      await setDoc(courseRef, updatedData, { merge: true });
-      
-      // Update local selected state immediately for better UX
-      setSelectedCourse({ ...selectedCourse, ...updatedData } as Course);
+      if (isAdding) {
+          await addDoc(collection(db, "courses"), updatedData);
+      } else {
+          if (!selectedCourse) return;
+          const courseRef = doc(db, "courses", selectedCourse.id);
+          // Use setDoc with merge: true to handle both existing docs and new docs (from INITIAL_COURSES)
+          await setDoc(courseRef, updatedData, { merge: true });
+          // Update local selected state immediately for better UX
+          setSelectedCourse({ ...selectedCourse, ...updatedData } as Course);
+      }
       
       setIsEditing(false);
+      setIsAdding(false);
+      if (isAdding) {
+          setSelectedCourse(null);
+      }
       setImageFile(null);
       alert("บันทึกข้อมูลเรียบร้อยแล้ว");
     } catch (error) {
@@ -338,6 +391,14 @@ const Courses: React.FC<CoursesProps> = ({ user }) => {
               <option value="price_desc">ราคา: สูง - ต่ำ</option>
               <option value="popularity">ยอดนิยม</option>
             </select>
+            {isSuperAdmin && (
+                <button 
+                  onClick={handleAddClick}
+                  className="px-4 py-2.5 bg-ocean-600 text-white font-bold rounded-xl hover:bg-ocean-700 transition-colors whitespace-nowrap shadow-md"
+                >
+                  + เพิ่มคอร์สเรียน
+                </button>
+            )}
           </div>
         </div>
 
@@ -450,7 +511,7 @@ const Courses: React.FC<CoursesProps> = ({ user }) => {
               // EDIT MODE (Admin)
               <div className="p-10">
                 <h2 className="text-3xl font-bold mb-8 text-slate-800 flex items-center">
-                  <Edit2 className="mr-3 h-8 w-8 text-ocean-600" /> แก้ไขคอร์สเรียน
+                  <Edit2 className="mr-3 h-8 w-8 text-ocean-600" /> {isAdding ? 'เพิ่มคอร์สเรียนใหม่' : 'แก้ไขคอร์สเรียน'}
                 </h2>
                 <div className="space-y-6">
                   
@@ -536,11 +597,61 @@ const Courses: React.FC<CoursesProps> = ({ user }) => {
                       />
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-base font-bold text-slate-700">กลุ่มอายุ</label>
+                      <input 
+                        placeholder="เช่น 4-6 ขวบ"
+                        value={editForm.ageGroup || ''} 
+                        onChange={e => setEditForm({...editForm, ageGroup: e.target.value})}
+                        className={inputClasses}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-base font-bold text-slate-700">ประเภทคอร์ส</label>
+                      <select 
+                        value={editForm.type || 'Normal'} 
+                        onChange={e => setEditForm({...editForm, type: e.target.value as any})}
+                        className={inputClasses}
+                      >
+                        <option value="Normal">ปกติ (Normal)</option>
+                        <option value="Private">ส่วนตัว (Private)</option>
+                        <option value="Baby">เด็กเล็ก (Baby)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-base font-bold text-slate-700">จำนวนครั้ง/ชั่วโมง</label>
+                    <input 
+                      type="number"
+                      value={editForm.sessions || 0} 
+                      onChange={e => setEditForm({...editForm, sessions: Number(e.target.value)})}
+                      className={inputClasses}
+                    />
+                  </div>
                   <div>
                     <label className="block text-base font-bold text-slate-700">ช่วงเวลา</label>
                     <input 
                       value={editForm.timeSlot || ''} 
                       onChange={e => setEditForm({...editForm, timeSlot: e.target.value})}
+                      className={inputClasses}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-base font-bold text-slate-700">รายละเอียดคอร์ส</label>
+                    <textarea 
+                      rows={3}
+                      value={editForm.description || ''} 
+                      onChange={e => setEditForm({...editForm, description: e.target.value})}
+                      className={inputClasses}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-base font-bold text-slate-700">เงื่อนไข</label>
+                    <textarea 
+                      rows={2}
+                      value={editForm.terms || ''} 
+                      onChange={e => setEditForm({...editForm, terms: e.target.value})}
                       className={inputClasses}
                     />
                   </div>
@@ -573,12 +684,25 @@ const Courses: React.FC<CoursesProps> = ({ user }) => {
                         <option value="closed">ปิดรับสมัคร</option>
                     </select>
                   </div>
-                  <div className="flex justify-end space-x-4 mt-8">
-                    <button onClick={() => setIsEditing(false)} disabled={saving} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-xl text-lg">ยกเลิก</button>
-                    <button onClick={handleSaveEdit} disabled={saving} className="px-8 py-3 bg-ocean-600 text-white rounded-xl hover:bg-ocean-700 flex items-center text-lg font-bold disabled:opacity-70">
-                      {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />} 
-                      {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-                    </button>
+                  <div className="flex justify-between items-center mt-8">
+                    <div>
+                        {!isAdding && isSuperAdmin && (
+                            <button 
+                                onClick={() => setShowDeleteConfirm(true)} 
+                                disabled={saving} 
+                                className="px-6 py-3 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-lg font-bold flex items-center transition-colors"
+                            >
+                                <XCircle className="w-5 h-5 mr-2" /> ลบคอร์ส
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex space-x-4">
+                        <button onClick={() => { setIsEditing(false); setIsAdding(false); setSelectedCourse(null); }} disabled={saving} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-xl text-lg">ยกเลิก</button>
+                        <button onClick={handleSaveEdit} disabled={saving} className="px-8 py-3 bg-ocean-600 text-white rounded-xl hover:bg-ocean-700 flex items-center text-lg font-bold disabled:opacity-70">
+                        {saving ? <Loader2 className="animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />} 
+                        {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+                        </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -778,6 +902,38 @@ const Courses: React.FC<CoursesProps> = ({ user }) => {
                  </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 text-red-600">
+              <XCircle size={40} />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2">ยืนยันการลบคอร์ส</h3>
+            <p className="text-slate-600 mb-6">
+              คุณแน่ใจหรือไม่ว่าต้องการลบคอร์ส <span className="font-bold">"{selectedCourse?.title}"</span>?<br/><br/>
+              <span className="text-red-500 text-sm">คำเตือน: การกระทำนี้ไม่สามารถย้อนกลับได้ และอาจส่งผลกระทบต่อข้อมูลการลงทะเบียนที่เชื่อมโยงกับคอร์สนี้</span>
+            </p>
+            <div className="flex space-x-4">
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={saving}
+                className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                ยกเลิก
+              </button>
+              <button 
+                onClick={handleDeleteCourse}
+                disabled={saving}
+                className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center"
+              >
+                {saving ? <Loader2 className="animate-spin mr-2" /> : null}
+                {saving ? 'กำลังลบ...' : 'ยืนยันการลบ'}
+              </button>
+            </div>
           </div>
         </div>
       )}

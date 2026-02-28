@@ -85,7 +85,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [activeNotifications, setActiveNotifications] = useState<NotificationData[]>([]);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [showExpiryAlertModal, setShowExpiryAlertModal] = useState<{ courseName: string, daysLeft: number } | null>(null);
+  const [showExpiryAlertModal, setShowExpiryAlertModal] = useState<{ courseName: string, daysLeft: number, isSessionAlert?: boolean } | null>(null);
 
   const [stats, setStats] = useState({
     totalIncome: 0,
@@ -223,7 +223,12 @@ export default function Dashboard({ user }: DashboardProps) {
                     effectiveExpiry = d.toISOString();
                 }
                 const daysLeft = calculateDaysLeft(effectiveExpiry);
-                return daysLeft <= 30 && daysLeft > 0;
+                
+                const totalSessions = course?.sessions || 20;
+                const attendedCount = e.attendance ? e.attendance.length : 0;
+                const sessionsLeft = totalSessions - attendedCount;
+
+                return (daysLeft <= 30 && daysLeft > 0) || sessionsLeft === 1;
             });
 
             if (expiring) {
@@ -236,9 +241,15 @@ export default function Dashboard({ user }: DashboardProps) {
                         d.setMonth(d.getMonth() + 3);
                         effectiveExpiry = d.toISOString();
                     }
+                    const daysLeft = calculateDaysLeft(effectiveExpiry);
+                    const totalSessions = course?.sessions || 20;
+                    const attendedCount = expiring.attendance ? expiring.attendance.length : 0;
+                    const sessionsLeft = totalSessions - attendedCount;
+
                     setShowExpiryAlertModal({
                         courseName: course?.title || 'Unknown Course',
-                        daysLeft: calculateDaysLeft(effectiveExpiry)
+                        daysLeft: daysLeft,
+                        isSessionAlert: sessionsLeft === 1
                     });
                     sessionStorage.setItem(`expiry_alert_${expiring.id}`, 'true');
                 }
@@ -438,8 +449,19 @@ export default function Dashboard({ user }: DashboardProps) {
             }
 
             const daysLeft = calculateDaysLeft(effectiveExpiry);
+            const totalSessions = course?.sessions || 20;
+            const attendedCount = en.attendance ? en.attendance.length : 0;
+            const sessionsLeft = totalSessions - attendedCount;
             
-            if (daysLeft <= 30 && daysLeft > 0) {
+            if (sessionsLeft === 1) {
+                await sendNotification(
+                    en.userId,
+                    "แจ้งเตือน: เหลือเวลาเรียน 1 ครั้งสุดท้าย",
+                    `คอร์ส ${course?.title || 'เรียนว่ายน้ำ'} ของคุณเหลือเวลาเรียนอีก 1 ครั้งสุดท้าย กรุณาวางแผนการเรียนให้ครบ`,
+                    'EXPIRY'
+                );
+                count++;
+            } else if (daysLeft <= 30 && daysLeft > 0) {
                 await sendNotification(
                     en.userId,
                     "คอร์สเรียนใกล้หมดอายุ",
@@ -1007,7 +1029,7 @@ export default function Dashboard({ user }: DashboardProps) {
                                                 <tr key={student.id} className={`hover:bg-slate-50 transition-colors ${checkedInToday ? 'bg-green-50/30' : ''}`}>
                                                     <td className="p-5 text-center">{!checkedInToday && (<input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-ocean-600 focus:ring-ocean-500 cursor-pointer" checked={selectedStudentIds.includes(student.id)} onChange={() => toggleStudentSelection(student.id)} />)}{checkedInToday && <CheckCircle className="w-5 h-5 text-green-500 mx-auto" />}</td>
                                                     <td className="p-5"><div className="font-bold text-slate-800 text-lg">{student.studentName}</div><div className="text-xs text-slate-500">รหัส: {student.studentId || '-'}</div></td>
-                                                   <td className="p-5"><div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold text-slate-700">{attendedCount}/{totalSessions} ครั้ง</span></div><div className="w-32 bg-slate-200 rounded-full h-2"><div className="bg-ocean-500 h-2 rounded-full" style={{ width: `${Math.min((attendedCount/totalSessions)*100, 100)}%` }}></div></div></td>
+                                                    <td className="p-5"><div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold text-slate-700">{attendedCount}/{totalSessions} ครั้ง</span></div><div className="w-32 bg-slate-200 rounded-full h-2"><div className="bg-ocean-500 h-2 rounded-full" style={{ width: `${Math.min((attendedCount/totalSessions)*100, 100)}%` }}></div></div></td>
                                                     <td className="p-5"><div className="flex gap-2"><button onClick={(e) => { e.stopPropagation(); setTargetStudent(student); setShowProfileModal(true); }} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 flex items-center transition-colors"><FileText size={14} className="mr-1" /> ประวัติ</button><button onClick={(e) => { e.stopPropagation(); setTargetStudent(student); setShowCalendarModal(true); }} className="px-3 py-1.5 bg-ocean-50 text-ocean-600 rounded-lg text-xs font-bold hover:bg-ocean-100 flex items-center transition-colors"><CalendarCheck size={14} className="mr-1" /> ตารางเรียน</button></div></td>
                                                     <td className="p-5">{student.evaluation === 'PENDING' ? (<div className="flex gap-2"><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEvaluationTarget({ enrollmentId: student.id, result: 'PASS', userId: student.userId, studentName: student.studentName }); }} className="px-3 py-1 bg-green-50 text-green-600 rounded-lg text-xs font-bold border border-green-200 hover:bg-green-100">ผ่าน</button><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEvaluationTarget({ enrollmentId: student.id, result: 'FAIL', userId: student.userId, studentName: student.studentName }); }} className="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100">ไม่ผ่าน</button></div>) : (<span className={`text-sm font-bold ${student.evaluation === 'PASS' ? 'text-green-600' : 'text-red-600'}`}>{student.evaluation === 'PASS' ? 'ผ่านแล้ว' : 'ไม่ผ่าน'}</span>)}</td>
                                                 </tr>
@@ -1247,9 +1269,15 @@ export default function Dashboard({ user }: DashboardProps) {
           <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-white rounded-3xl p-8 shadow-2xl max-w-sm w-full text-center">
                    <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 text-orange-600 animate-pulse"><Clock size={40} /></div>
-                   <h3 className="text-2xl font-bold text-slate-800 mb-2">คอร์สใกล้หมดอายุ!</h3>
+                   <h3 className="text-2xl font-bold text-slate-800 mb-2">
+                      {showExpiryAlertModal.isSessionAlert ? 'เหลือเรียนอีก 1 ครั้ง!' : 'คอร์สใกล้หมดอายุ!'}
+                   </h3>
                    <p className="text-slate-600 mb-2 font-bold">{showExpiryAlertModal.courseName}</p>
-                   <p className="text-slate-500 mb-8">เหลือเวลาเรียนอีก <span className="text-orange-600 font-bold text-xl">{showExpiryAlertModal.daysLeft}</span> วัน</p>
+                   {showExpiryAlertModal.isSessionAlert ? (
+                       <p className="text-slate-500 mb-8">เหลือเวลาเรียนอีก <span className="text-orange-600 font-bold text-xl">1</span> ครั้งสุดท้าย</p>
+                   ) : (
+                       <p className="text-slate-500 mb-8">เหลือเวลาเรียนอีก <span className="text-orange-600 font-bold text-xl">{showExpiryAlertModal.daysLeft}</span> วัน</p>
+                   )}
                    <button onClick={() => setShowExpiryAlertModal(null)} className="w-full py-3 bg-ocean-600 text-white font-bold rounded-xl hover:bg-ocean-700 shadow-lg">เข้าใจแล้ว</button>
               </div>
           </div>

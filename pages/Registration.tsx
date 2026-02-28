@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { uploadImageToImgbb } from '../services/imgbbService';
 import { generateStudentId } from '../services/studentIdGenerator';
@@ -21,10 +21,40 @@ const Registration: React.FC<RegistrationProps> = ({ user }) => {
   const queryParams = new URLSearchParams(location.search);
   const preSelectedCourseId = queryParams.get('courseId');
 
-  const [courses] = useState<Course[]>(INITIAL_COURSES);
+  const [courses, setCourses] = useState<Course[]>(INITIAL_COURSES);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   
+  // Fetch courses in real-time
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "courses"), (snapshot) => {
+      const firestoreCourses: Record<string, Course> = {};
+      
+      snapshot.forEach(doc => {
+          firestoreCourses[doc.id] = { id: doc.id, ...doc.data() } as Course;
+      });
+
+      const mergedCourses = INITIAL_COURSES.map(initCourse => {
+          if (firestoreCourses[initCourse.id]) {
+              const updated = firestoreCourses[initCourse.id];
+              delete firestoreCourses[initCourse.id];
+              return updated;
+          }
+          return initCourse;
+      });
+
+      const finalCourses = [...mergedCourses, ...Object.values(firestoreCourses)];
+      
+      // Only show courses that are open for registration
+      setCourses(finalCourses.filter(c => c.isOpen !== false));
+    }, (error) => {
+      console.error("Error loading courses:", error);
+      setCourses(INITIAL_COURSES);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Form State
   const [formData, setFormData] = useState({
     studentName: user?.displayName || '',
@@ -39,6 +69,71 @@ const Registration: React.FC<RegistrationProps> = ({ user }) => {
     courseId: preSelectedCourseId || '',
     phone: user?.phone || '',
   });
+
+  useEffect(() => {
+    const fetchPreviousData = async () => {
+      if (!user) return;
+      try {
+        const q = query(
+          collection(db, 'enrollments'),
+          where('userId', '==', user.uid)
+        );
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          // Sort by createdAt descending to get the latest enrollment
+          const enrollments = snapshot.docs.map(doc => doc.data());
+          enrollments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          
+          const prevData = enrollments[0];
+          setFormData(prev => ({
+            ...prev,
+            studentName: prevData.studentName || prev.studentName,
+            gender: prevData.gender || prev.gender,
+            age: prevData.age ? String(prevData.age) : prev.age,
+            weight: prevData.weight || prev.weight,
+            height: prevData.height || prev.height,
+            disease: prevData.disease || prev.disease,
+            adhdCondition: prevData.adhdCondition !== undefined ? prevData.adhdCondition : prev.adhdCondition,
+            school: prevData.school || prev.school,
+            phone: prevData.phone || prev.phone,
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching previous enrollment data:", error);
+      }
+    };
+
+    fetchPreviousData();
+  }, [user]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "courses"), (snapshot) => {
+      const firestoreCourses: Record<string, Course> = {};
+      
+      snapshot.forEach(doc => {
+          firestoreCourses[doc.id] = { id: doc.id, ...doc.data() } as Course;
+      });
+
+      // Merge logic: Start with INITIAL_COURSES, override with Firestore data
+      const mergedCourses = INITIAL_COURSES.map(initCourse => {
+          if (firestoreCourses[initCourse.id]) {
+              const updated = firestoreCourses[initCourse.id];
+              delete firestoreCourses[initCourse.id];
+              return updated;
+          }
+          return initCourse;
+      });
+
+      // Add any remaining Firestore courses (newly created ones not in INITIAL)
+      const finalCourses = [...mergedCourses, ...Object.values(firestoreCourses)];
+      
+      setCourses(finalCourses);
+    }, (error) => {
+      console.error("Error loading courses:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
