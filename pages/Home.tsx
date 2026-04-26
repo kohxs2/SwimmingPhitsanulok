@@ -46,11 +46,11 @@ const Home: React.FC = () => {
   const galleryImages = [
     "https://img2.pic.in.th/pic/33155.jpg",
     "https://img2.pic.in.th/pic/33167_0b1fb2fb12172231f.jpg",
-    "https://pic.in.th/image/33176-0.D5R5Yo",
-    "https://pic.in.th/image/33168-0.D5RD7T",
+    "https://img2.pic.in.th/33176_0157edff77e01b65c.jpg",
+    "https://img1.pic.in.th/images/33168_0.jpg",
     "https://img2.pic.in.th/pic/33174_007b21869636b6f14.jpg",
     "https://img2.pic.in.th/pic/33175_0.jpg",
-    "https://pic.in.th/image/33172-0.D5R8hq"
+    "https://img2.pic.in.th/33172_0.jpg"
   ];
 
   // Fetch courses from Firestore to get updated data/images
