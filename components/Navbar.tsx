@@ -156,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-3 group overflow-hidden">
           <img 
-            src="https://img5.pic.in.th/file/secure-sv1/548319157_1084231807208955_4955603028962618729_n.png" 
+            src="https://img1.pic.in.th/images/548319157_1084231807208955_4955603028962618729_n.png" 
             alt="Logo" 
             className="w-12 h-12 rounded-xl object-cover border border-slate-100 shadow-sm flex-shrink-0" 
           />
