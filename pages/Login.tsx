@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 // @ts-ignore
-import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { 
+  signInWithPopup, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  RecaptchaVerifier, 
+  signInWithPhoneNumber,
+  sendPasswordResetEmail 
+} from "firebase/auth";
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../services/firebase';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -20,6 +27,7 @@ const Login: React.FC = () => {
   const [authMethod, setAuthMethod] = useState<'EMAIL' | 'PHONE'>('EMAIL');
   
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
@@ -90,7 +98,12 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      if (isRegistering) {
+      if (isResettingPassword) {
+        await sendPasswordResetEmail(auth, email);
+        setError('');
+        alert("ตรวจสอบอีเมลของคุณเพื่อรีเซ็ตรหัสผ่าน (รวมถึงในโฟลเดอร์ขยะ/Junk)");
+        setIsResettingPassword(false);
+      } else if (isRegistering) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await handleUserCreation(userCredential.user);
         navigate('/dashboard');
@@ -200,12 +213,12 @@ const Login: React.FC = () => {
             <div className="text-center mb-10">
                 <h2 className="text-3xl font-bold text-slate-800">
                     {authMethod === 'EMAIL' 
-                        ? (isRegistering ? 'สร้างบัญชีด้วยอีเมล' : 'เข้าสู่ระบบด้วยอีเมล') 
+                        ? (isResettingPassword ? 'รีเซ็ตรหัสผ่าน' : (isRegistering ? 'สร้างบัญชีด้วยอีเมล' : 'เข้าสู่ระบบด้วยอีเมล')) 
                         : 'เข้าสู่ระบบ / สมัครด้วยเบอร์โทร'}
                 </h2>
                 <p className="text-slate-500 text-base mt-2">
                     {authMethod === 'EMAIL' 
-                        ? 'กรอกอีเมลและรหัสผ่านเพื่อดำเนินการต่อ' 
+                        ? (isResettingPassword ? 'กรอกอีเมลเพื่อรับลิงก์รีเซ็ตรหัสผ่าน' : 'กรอกอีเมลและรหัสผ่านเพื่อดำเนินการต่อ') 
                         : 'ระบบจะส่งรหัส OTP เพื่อยืนยันตัวตนของคุณ'}
                 </p>
             </div>
@@ -217,7 +230,7 @@ const Login: React.FC = () => {
                 </div>
             )}
 
-            {/* --- EMAIL FORM --- */}
+              {/* --- EMAIL FORM --- */}
             {authMethod === 'EMAIL' && (
                 <form onSubmit={handleEmailAuth} className="space-y-5 animate-fade-in">
                     <div className="relative">
@@ -234,20 +247,34 @@ const Login: React.FC = () => {
                         />
                     </div>
 
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                            <Lock size={22} />
+                    {!isResettingPassword && (
+                      <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                              <Lock size={22} />
+                          </div>
+                          <input 
+                              type="password" 
+                              required={!isResettingPassword}
+                              minLength={6}
+                              placeholder="รหัสผ่าน"
+                              className={inputClasses}
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                          />
+                      </div>
+                    )}
+
+                    {!isRegistering && !isResettingPassword && (
+                        <div className="flex justify-end pr-1">
+                            <button 
+                                type="button"
+                                onClick={() => setIsResettingPassword(true)}
+                                className="text-sm text-ocean-600 hover:text-ocean-700 font-medium"
+                            >
+                                ลืมรหัสผ่าน?
+                            </button>
                         </div>
-                        <input 
-                            type="password" 
-                            required 
-                            minLength={6}
-                            placeholder="รหัสผ่าน"
-                            className={inputClasses}
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </div>
+                    )}
 
                     <button 
                         type="submit" 
@@ -255,18 +282,30 @@ const Login: React.FC = () => {
                         className="w-full py-4 bg-ocean-600 text-white font-bold rounded-xl shadow-lg shadow-ocean-500/30 hover:bg-ocean-700 transition-all flex items-center justify-center disabled:opacity-70 mt-4 text-xl"
                     >
                         {loading ? <Loader2 className="animate-spin mr-3 h-6 w-6" /> : null}
-                        {isRegistering ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}
+                        {isResettingPassword ? 'ส่งลิงก์รีเซ็ตรหัสผ่าน' : (isRegistering ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ')}
                     </button>
 
                     <div className="text-center mt-6 text-base text-slate-500">
-                        {isRegistering ? 'มีบัญชีอยู่แล้ว? ' : 'ยังไม่มีบัญชี? '}
-                        <button 
-                            type="button" 
-                            onClick={() => setIsRegistering(!isRegistering)}
-                            className="text-ocean-600 font-bold hover:underline"
-                        >
-                            {isRegistering ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
-                        </button>
+                        {isResettingPassword ? (
+                            <button 
+                                type="button" 
+                                onClick={() => setIsResettingPassword(false)}
+                                className="text-ocean-600 font-bold hover:underline"
+                            >
+                                กลับไปหน้าเข้าสู่ระบบ
+                            </button>
+                        ) : (
+                            <>
+                                {isRegistering ? 'มีบัญชีอยู่แล้ว? ' : 'ยังไม่มีบัญชี? '}
+                                <button 
+                                    type="button" 
+                                    onClick={() => setIsRegistering(!isRegistering)}
+                                    className="text-ocean-600 font-bold hover:underline"
+                                >
+                                    {isRegistering ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก'}
+                                </button>
+                            </>
+                        )}
                     </div>
                 </form>
             )}

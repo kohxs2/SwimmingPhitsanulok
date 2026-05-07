@@ -50,7 +50,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   
   // Tabs
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'schedule' | 'enrollments' | 'users' | 'history' | 'leaves'>(
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'schedule' | 'enrollments' | 'users' | 'history' | 'leaves' | 'followup'>(
       user.role === UserRole.INSTRUCTOR ? 'schedule' : 'overview'
   );
   
@@ -720,6 +720,7 @@ export default function Dashboard({ user }: DashboardProps) {
                 <TabButton id="enrollments" label="ประวัติการสมัคร" />
                 <TabButton id="users" label="ผู้ใช้งาน" />
                 <TabButton id="leaves" label="การลาหยุด" />
+                <TabButton id="followup" label="ติดตามนักเรียน" />
             </div>
 
             {activeTab === 'overview' && (
@@ -975,6 +976,98 @@ export default function Dashboard({ user }: DashboardProps) {
                                     </tr>
                                 ))}
                                 {leaveRequests.length === 0 && <tr><td colSpan={7} className="p-12 text-center text-slate-400">ไม่มีคำขอลาหยุด</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+            {activeTab === 'followup' && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in relative">
+                    <div className="p-6 border-b border-slate-100">
+                        <h3 className="font-bold text-xl text-slate-800 flex items-center"><AlertTriangle className="mr-2 text-orange-600"/> นักเรียนที่ใกล้หมดอายุ / เหลือเรียนครั้งสุดท้าย</h3>
+                        <p className="text-slate-500 text-sm mt-1">สามารถนำข้อมูลหรือเบอร์โทรศัพท์ไปติดต่อหรือแอด LINE ผู้ปกครองเพื่อแจ้งต่ออายุคอร์สเรียนได้</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 text-slate-600 uppercase text-sm font-bold border-b border-slate-200">
+                                <tr>
+                                    <th className="p-5">นักเรียน</th>
+                                    <th className="p-5">คอร์ส</th>
+                                    <th className="p-5">เบอร์โทร / LINE</th>
+                                    <th className="p-5">สถานะคงเหลือ</th>
+                                    <th className="p-5">รูปแบบการเตือน</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {enrollments.filter(en => {
+                                    if (en.paymentStatus !== 'PAID') return false;
+                                    const course = courses.find(c => c.id === en.courseId);
+                                    let effectiveExpiry = en.expiryDate;
+                                    if (!effectiveExpiry && course?.type === 'Normal' && en.startDate) {
+                                        const d = new Date(en.startDate);
+                                        d.setMonth(d.getMonth() + 3);
+                                        effectiveExpiry = d.toISOString();
+                                    }
+                                    const daysLeft = calculateDaysLeft(effectiveExpiry);
+                                    const totalSessions = course?.sessions || 20;
+                                    const attendedCount = en.attendance ? en.attendance.length : 0;
+                                    const sessionsLeft = totalSessions - attendedCount;
+                                    
+                                    return (sessionsLeft === 1 || (daysLeft <= 30 && daysLeft > 0));
+                                }).map(en => {
+                                    const course = courses.find(c => c.id === en.courseId);
+                                    let effectiveExpiry = en.expiryDate;
+                                    if (!effectiveExpiry && course?.type === 'Normal' && en.startDate) {
+                                        const d = new Date(en.startDate);
+                                        d.setMonth(d.getMonth() + 3);
+                                        effectiveExpiry = d.toISOString();
+                                    }
+                                    const daysLeft = calculateDaysLeft(effectiveExpiry);
+                                    const totalSessions = course?.sessions || 20;
+                                    const attendedCount = en.attendance ? en.attendance.length : 0;
+                                    const sessionsLeft = totalSessions - attendedCount;
+
+                                    return (
+                                        <tr key={en.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-5">
+                                                <div className="font-bold text-slate-800 text-base">{en.studentName}</div>
+                                                <div className="text-xs text-slate-500">รหัส: {en.studentId || '-'}</div>
+                                            </td>
+                                            <td className="p-5 text-slate-700">{course?.title || 'Unknown'}</td>
+                                            <td className="p-5 font-bold text-ocean-600">
+                                                <div className="flex items-center">
+                                                    <Phone size={14} className="mr-2" />
+                                                    {en.phone || '-'}
+                                                </div>
+                                            </td>
+                                            <td className="p-5">
+                                                <div className="text-sm font-bold text-slate-700">เรียนแล้ว {attendedCount}/{totalSessions} ครั้ง</div>
+                                                {daysLeft !== Infinity && <div className="text-xs text-slate-500 mt-1">หมดอายุในอีก {daysLeft} วัน</div>}
+                                            </td>
+                                            <td className="p-5">
+                                                {sessionsLeft === 1 && <span className="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold mr-2 mb-1">ครั้งสุดท้าย</span>}
+                                                {(daysLeft <= 30 && daysLeft > 0) && <span className="inline-block bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold">ใกล้หมดอายุ</span>}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                {enrollments.filter(en => {
+                                    if (en.paymentStatus !== 'PAID') return false;
+                                    const course = courses.find(c => c.id === en.courseId);
+                                    let effectiveExpiry = en.expiryDate;
+                                    if (!effectiveExpiry && course?.type === 'Normal' && en.startDate) {
+                                        const d = new Date(en.startDate);
+                                        d.setMonth(d.getMonth() + 3);
+                                        effectiveExpiry = d.toISOString();
+                                    }
+                                    const daysLeft = calculateDaysLeft(effectiveExpiry);
+                                    const totalSessions = course?.sessions || 20;
+                                    const attendedCount = en.attendance ? en.attendance.length : 0;
+                                    const sessionsLeft = totalSessions - attendedCount;
+                                    return (sessionsLeft === 1 || (daysLeft <= 30 && daysLeft > 0));
+                                }).length === 0 && (
+                                    <tr><td colSpan={5} className="p-12 text-center text-slate-400">ไม่มีนักเรียนที่ใกล้หมดอายุในขณะนี้</td></tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
